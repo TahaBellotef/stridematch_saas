@@ -1,0 +1,223 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import "tailwindcss";
+
+/* ------------------------------
+   🌈 Global Design Tokens
+------------------------------ */
+
+:root {
+  --sm-primary: #6F41E8;
+  --sm-primary-dark: #3B1EC5;
+  --sm-accent-teal: #11C1C4;
+  --sm-accent-mint: #6AFAA5;
+  /* Figma tokens */
+  --sm-stroke: #211D31; /* stroke */
+  --sm-fill: #28243D; /* fill */
+  --sm-content: #312d4b; /* content background */
+  --sm-bg-gradient-start: var(--sm-fill);
+  --sm-bg-gradient-end: var(--sm-stroke);
+  --sm-surface: rgba(40,36,61,0.8);
+  --sm-surface-elevated: rgba(33,29,49,0.85);
+  --sm-border: rgba(255,255,255,0.04);
+  --sm-text: #E8E6F1;
+  --sm-text-muted: #B9B4C6;
+}
+
+/* ------------------------------
+   🖋️ Base Theme Setup
+------------------------------ */
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply font-sans antialiased;
+  color: var(--sm-text);
+  background: linear-gradient(180deg, var(--sm-bg-gradient-start) 0%, var(--sm-bg-gradient-end) 100%);
+  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  @apply text-inherit no-underline;
+}
+
+/* ------------------------------
+   ✨ Utility Enhancements
+------------------------------ */
+
+button {
+  @apply cursor-pointer transition-all;
+}
+
+input, select, textarea {
+  @apply focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-1;
+}
+
+/* Override browser autofill styles for login page */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px #534E70 inset !important;
+  -webkit-text-fill-color: white !important;
+  background-color: #534E70 !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+/* Hide browser-native password reveal controls to avoid duplicate eye icons */
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear {
+  display: none !important;
+  width: 0;
+  height: 0;
+}
+
+input[type="password"]::-webkit-credentials-auto-fill-button {
+  visibility: hidden;
+  display: none !important;
+  pointer-events: none;
+  position: absolute;
+  right: 0;
+}
+
+input[type="password"]::-webkit-textfield-decoration-container {
+  visibility: hidden;
+}
+
+/* Hide default file input */
+input[type="file"] {
+  @apply hidden;
+}
+
+/* Custom scrollbars (light + dark) */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.4);
+  border-radius: 6px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.6);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.3);
+}
+
+/* ------------------------------
+   Admin-specific helpers
+------------------------------ */
+.admin-header {
+  background: linear-gradient(90deg, rgba(111,65,232,0.10), rgba(78,70,180,0.06));
+  backdrop-filter: blur(8px);
+}
+
+.admin-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.admin-sidebar {
+  background: var(--sm-fill);
+  border-right: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.admin-panel {
+  background: linear-gradient(180deg, rgba(40,36,61,0.6), rgba(33,29,49,0.75));
+  border: 1px solid rgba(255, 255, 255, 0.03);
+  box-shadow: 0 20px 50px rgba(6,6,16,0.6), inset 0 1px 0 rgba(255,255,255,0.02);
+  border-radius: 16px;
+}
+
+.admin-card {
+  background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+  border: 1px solid rgba(255,255,255,0.04);
+  border-radius: 18px;
+  padding: 0.75rem;
+}
+
+/* page background for admin pages */
+.admin-page {
+  min-height: 100vh;
+  background: linear-gradient(180deg, var(--sm-fill) 0%, var(--sm-stroke) 100%);
+}
+
+/* ------------------------------
+   🎞️ Animations
+------------------------------ */
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeInUp {
+  animation: fadeInUp 0.6s ease-out forwards;
+}
+
+@keyframes spin-slow {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 1.5s linear infinite;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+.animate-fade-slide {
+  animation: fadeSlideIn 300ms ease-out;
+}
+
+.page-transition {
+  animation: fadeSlideIn 260ms ease-out;
+  /* No will-change here: it creates a containing block for descendant
+     position:fixed elements (transform/opacity hints do this even with no
+     active transform), which broke every full-viewport fixed overlay
+     (modals, sidebar, header) under this wrapper - they'd size/position
+     against this div instead of the real viewport. */
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-transition,
+  .animate-fade-slide {
+    animation: none;
+  }
+}
+
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}

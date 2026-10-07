@@ -1,0 +1,60 @@
+# =======================================
+# StrideMatchLab FastAPI Backend (EC2 / Docker)
+# Runtime Dependencies (Python 3.12)
+# =======================================
+
+# --- Core Runtime ---
+fastapi==0.128.0
+pydantic==2.12.5
+email-validator==2.3.0  # required by pydantic.EmailStr (CustomerInfoUpdate)
+uvicorn[standard]==0.40.0
+python-dotenv==1.2.1
+
+# --- Data & Computation ---
+numpy==2.4.1
+# pandas 3.0 is released (stable)
+pandas==3.0.0
+scipy==1.17.0
+
+# --- AWS / Storage ---
+boto3==1.42.35
+botocore==1.42.35
+
+# --- Database / SQL ---
+SQLAlchemy==2.0.46
+psycopg2-binary==2.9.10
+
+# --- Video & ML ---
+av==13.0.0
+
+# rtmlib 0.0.14 requires onnxruntime>=1.23.2
+onnxruntime==1.23.2
+rtmlib==0.0.14
+
+# IMPORTANT: Use ONE OpenCV package (headless recommended)
+opencv-python-headless==4.13.0.90
+
+# --- Image ---
+Pillow==12.1.0
+
+# --- PDF reports ---
+reportlab==4.2.5
+
+# --- Excel reports ---
+openpyxl==3.1.5
+
+# --- HTTP / Uploads ---
+python-multipart==0.0.22
+httpx==0.28.1
+
+# --- Authentication / Security ---
+PyJWT==2.10.1
+cryptography==46.0.3
+slowapi==0.1.9
+bcrypt==4.3.0
+
+# --- Logging ---
+python-json-logger==3.2.1
+
+# --- Utilities ---
+python-dateutil==2.9.0.post0

@@ -1,0 +1,149 @@
+name: Build & Deploy Backend
+
+on:
+  push:
+    branches: [main, RTMPose]
+  workflow_dispatch:
+
+env:
+  AWS_REGION: eu-central-1
+  ECR_REPOSITORY: stridematchlab-backend
+
+jobs:
+  # ──────────────────────────────────────────────
+  # 1. Run tests
+  # ──────────────────────────────────────────────
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pytest
+
+      - name: Run tests
+        env:
+          DATABASE_URL: "sqlite:///:memory:"
+          ANALYSIS_RESULTS_DATABASE_URL: "sqlite:///:memory:"
+          ADMIN_USERNAME: test_admin
+          ADMIN_PASSWORD: test_password_123
+          STRIDEMATCH_AUTH_SECRET: xK9mQ2vR7nB4wT8jL5pF3hD6gY0cA1eU
+          COGNITO_REGION: ""
+          COGNITO_USER_POOL_ID: ""
+          COGNITO_CLIENT_ID: ""
+        run: python -m pytest tests/ -v
+
+  # ──────────────────────────────────────────────
+  # 2. Build & push Docker image to ECR
+  # ──────────────────────────────────────────────
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    environment: AWS
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build, tag, and push image
+        env:
+          ECR_REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          IMAGE_URI=$ECR_REGISTRY/$ECR_REPOSITORY
+          docker build -f Dockerfile.gpu -t $IMAGE_URI:$IMAGE_TAG -t $IMAGE_URI:latest .
+          docker push $IMAGE_URI:$IMAGE_TAG
+          docker push $IMAGE_URI:latest
+
+  # ──────────────────────────────────────────────
+  # 3. Deploy to EC2 with rollback
+  # ──────────────────────────────────────────────
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: AWS
+    steps:
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          command_timeout: 15m
+          script: |
+            set -e
+            ACCOUNT_ID="${{ secrets.AWS_ACCOUNT_ID }}"
+            REPO="stridematchlab-backend"
+            IMAGE="$ACCOUNT_ID.dkr.ecr.eu-central-1.amazonaws.com/$REPO"
+            CONTAINER="stridematchlab-backend"
+
+            echo "=== Login to ECR ==="
+            aws ecr get-login-password --region eu-central-1 | docker login --username AWS --password-stdin $ACCOUNT_ID.dkr.ecr.eu-central-1.amazonaws.com
+
+            echo "=== Pull new image ==="
+            docker pull $IMAGE:latest
+
+            echo "=== Save current image ID for rollback ==="
+            OLD_IMAGE=$(docker inspect --format='{{.Image}}' $CONTAINER 2>/dev/null || echo "none")
+
+            echo "=== Stop and remove old container ==="
+            docker stop $CONTAINER 2>/dev/null || true
+            docker rm $CONTAINER 2>/dev/null || true
+
+            echo "=== Start new container ==="
+            docker run -d \
+              --name $CONTAINER \
+              --restart unless-stopped \
+              --gpus all \
+              -p 8000:8000 \
+              --env-file /home/ubuntu/.env.production \
+              $IMAGE:latest
+
+            echo "=== Health check (retries for 60s) ==="
+            for i in $(seq 1 12); do
+              if curl -sf http://localhost:8000/healthz > /dev/null 2>&1; then
+                echo "Health check passed on attempt $i"
+                docker image prune -f
+                echo "=== Deployment successful! ==="
+                exit 0
+              fi
+              echo "Attempt $i/12 failed, waiting 5s..."
+              sleep 5
+            done
+
+            echo "=== Health check failed — rolling back ==="
+            docker stop $CONTAINER 2>/dev/null || true
+            docker rm $CONTAINER 2>/dev/null || true
+
+            if [ "$OLD_IMAGE" != "none" ]; then
+              echo "Rolling back to previous image: $OLD_IMAGE"
+              docker run -d \
+                --name $CONTAINER \
+                --restart unless-stopped \
+                --gpus all \
+                -p 8000:8000 \
+                --env-file /home/ubuntu/.env.production \
+                $OLD_IMAGE
+              echo "Rollback complete — previous version restored"
+            fi
+
+            exit 1

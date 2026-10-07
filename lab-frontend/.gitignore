@@ -1,0 +1,12 @@
+node_modules
+.next
+.env
+.DS_Store
+out/
+.next/ # Use .next/ to ignore the whole dir
+# Local dev certs
+localhost+2.pem
+localhost+2-key.pem
+# Local env
+.env.local
+

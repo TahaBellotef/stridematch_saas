@@ -1,0 +1,45 @@
+FROM --platform=linux/amd64 nvidia/cuda:12.6.3-cudnn-runtime-ubuntu22.04
+
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV MPLCONFIGDIR=/tmp/matplotlib
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PATH="/usr/local/bin:${PATH}"
+
+# System deps (Python 3.12 + ffmpeg + OpenCV deps)
+RUN apt-get update && apt-get install -y \
+    software-properties-common \
+ && add-apt-repository ppa:deadsnakes/ppa \
+ && apt-get update && apt-get install -y \
+    python3.12 \
+    python3.12-venv \
+    python3.12-dev \
+    ffmpeg \
+    gcc \
+    libgl1 \
+    libglib2.0-0 \
+    curl \
+ && rm -rf /var/lib/apt/lists/*
+
+# Make python3.12 the default and bootstrap pip
+RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.12 1 \
+ && update-alternatives --install /usr/bin/python python /usr/bin/python3.12 1 \
+ && python3.12 -m ensurepip --upgrade
+
+WORKDIR /app
+
+COPY requirements.txt .
+
+# Install deps, then swap onnxruntime CPU for GPU version
+RUN python3.12 -m pip install --no-cache-dir --break-system-packages -r requirements.txt \
+ && python3.12 -m pip uninstall -y onnxruntime \
+ && python3.12 -m pip install --no-cache-dir --break-system-packages onnxruntime-gpu
+
+COPY . .
+
+# Run as non-root user
+RUN groupadd -r appuser && useradd -r -g appuser -d /app -s /sbin/nologin appuser \
+ && chown -R appuser:appuser /app
+USER appuser
+
+CMD ["python3.12", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
